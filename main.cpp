@@ -28,13 +28,16 @@ int main() {
         // Execute command
         std::string result = executor.execute(*command);
 
-        // Output result if not empty
+        // Output result
         if (!result.empty()) {
             std::cout << result;
             // Add newline if result doesn't end with one
             if (result.back() != '\n') {
                 std::cout << std::endl;
             }
+        } else if (command->getType() == CommandType::SHOW) {
+            // For show command, output empty line when no results
+            std::cout << std::endl;
         }
 
         // Check if should exit

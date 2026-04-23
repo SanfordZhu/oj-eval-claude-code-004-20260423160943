@@ -193,6 +193,9 @@ std::string CommandExecutor::handleLogout() {
         return "Invalid";
     }
 
+    // Clear selected book when logging out
+    bookManager->clearSelectedBook();
+
     return "";
 }
 
