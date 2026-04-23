@@ -1,0 +1,14 @@
+CMakeFiles/
+CMakeCache.txt
+code
+*.o
+*.a
+*.so
+*.exe
+build/
+.vscode/
+.idea/
+*.log
+data/
+*.tmp
+*.bak
