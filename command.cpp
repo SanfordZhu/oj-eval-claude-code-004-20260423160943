@@ -487,6 +487,10 @@ std::string CommandExecutor::handleShowFinance(const std::vector<std::string>& a
         if (count < 0) {
             return "Invalid";
         }
+        if (count == 0) {
+            // Return empty string for count 0 (will output empty line in main)
+            return "";
+        }
     }
 
     auto logs = logManager->getFinanceLogs(count);

@@ -35,8 +35,9 @@ int main() {
             if (result.back() != '\n') {
                 std::cout << std::endl;
             }
-        } else if (command->getType() == CommandType::SHOW) {
-            // For show command, output empty line when no results
+        } else if (command->getType() == CommandType::SHOW ||
+                   command->getType() == CommandType::SHOW_FINANCE) {
+            // For show and show finance commands, output empty line when no results
             std::cout << std::endl;
         }
 
