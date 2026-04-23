@@ -310,6 +310,10 @@ std::string CommandExecutor::handleShow(const std::vector<std::string>& args) {
         return "Invalid";
     }
 
+    if (books.empty()) {
+        return ""; // Return empty string which will output as empty line
+    }
+
     return formatBookList(books);
 }
 

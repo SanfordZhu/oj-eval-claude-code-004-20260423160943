@@ -71,6 +71,10 @@ public:
     std::shared_ptr<Book> getSelectedBook() const;
     void clearSelectedBook();
 
+    // Login stack management - save/restore selected book per user
+    void saveSelectedBookForUser(const std::string& userID);
+    void restoreSelectedBookForUser(const std::string& userID);
+
     // Load/Save books
     void loadBooks();
     void saveBooks() const;
@@ -79,6 +83,9 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Book>> books;
     std::string selectedBookISBN;
     std::string booksFile;
+
+    // Map to store selected book per user (for login stack)
+    std::unordered_map<std::string, std::string> userSelectedBooks;
 
     // Helper functions
     std::vector<std::shared_ptr<Book>> filterBooks(

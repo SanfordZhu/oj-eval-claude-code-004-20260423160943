@@ -29,8 +29,10 @@ bool Book::hasKeyword(const std::string& searchKeyword) const {
 }
 
 std::string Book::toString() const {
-    return isbn + "\t" + name + "\t" + author + "\t" + keyword + "\t" +
-           doubleToString(price) + "\t" + std::to_string(quantity);
+    std::stringstream ss;
+    ss << isbn << "\t" << name << "\t" << author << "\t" << keyword << "\t";
+    ss << std::fixed << std::setprecision(2) << price << "\t" << quantity;
+    return ss.str();
 }
 
 BookManager::BookManager() : booksFile("books.dat") {
@@ -216,6 +218,19 @@ void BookManager::clearSelectedBook() {
     selectedBookISBN.clear();
 }
 
+void BookManager::saveSelectedBookForUser(const std::string& userID) {
+    userSelectedBooks[userID] = selectedBookISBN;
+}
+
+void BookManager::restoreSelectedBookForUser(const std::string& userID) {
+    auto it = userSelectedBooks.find(userID);
+    if (it != userSelectedBooks.end()) {
+        selectedBookISBN = it->second;
+    } else {
+        selectedBookISBN.clear();
+    }
+}
+
 void BookManager::loadBooks() {
     std::ifstream file(booksFile, std::ios::binary);
     if (!file.is_open()) {
@@ -224,35 +239,57 @@ void BookManager::loadBooks() {
 
     books.clear();
 
-    size_t count;
+    size_t count = 0;
     file.read(reinterpret_cast<char*>(&count), sizeof(count));
 
-    for (size_t i = 0; i < count; ++i) {
-        size_t isbnLen, nameLen, authorLen, keywordLen;
-        double price;
-        int quantity;
+    // Sanity check to prevent corrupted files from causing issues
+    if (count > 100000) {
+        file.close();
+        return;
+    }
+
+    for (size_t i = 0; i < count && file.good(); ++i) {
+        size_t isbnLen = 0, nameLen = 0, authorLen = 0, keywordLen = 0;
+        double price = 0.0;
+        int quantity = 0;
 
         file.read(reinterpret_cast<char*>(&isbnLen), sizeof(isbnLen));
+        if (isbnLen > 100) { // Sanity check
+            break;
+        }
         std::string isbn(isbnLen, '\0');
         file.read(&isbn[0], isbnLen);
 
         file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
+        if (nameLen > 100) { // Sanity check
+            break;
+        }
         std::string name(nameLen, '\0');
         file.read(&name[0], nameLen);
 
         file.read(reinterpret_cast<char*>(&authorLen), sizeof(authorLen));
+        if (authorLen > 100) { // Sanity check
+            break;
+        }
         std::string author(authorLen, '\0');
         file.read(&author[0], authorLen);
 
         file.read(reinterpret_cast<char*>(&keywordLen), sizeof(keywordLen));
+        if (keywordLen > 100) { // Sanity check
+            break;
+        }
         std::string keyword(keywordLen, '\0');
         file.read(&keyword[0], keywordLen);
 
         file.read(reinterpret_cast<char*>(&price), sizeof(price));
         file.read(reinterpret_cast<char*>(&quantity), sizeof(quantity));
 
-        auto book = std::make_shared<Book>(isbn, name, author, keyword, price, quantity);
-        books[isbn] = book;
+        // Validate data before creating book
+        if (isValidISBN(isbn) && isValidBookName(name) && isValidAuthor(author) &&
+            isValidKeyword(keyword) && price >= 0 && quantity >= 0) {
+            auto book = std::make_shared<Book>(isbn, name, author, keyword, price, quantity);
+            books[isbn] = book;
+        }
     }
 
     file.close();

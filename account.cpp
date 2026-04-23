@@ -41,6 +41,12 @@ bool AccountManager::login(const std::string& userID, const std::string& passwor
 
     auto currentUser = getCurrentUser();
 
+    // Save current user's selected book before switching
+    if (currentUser) {
+        // We need access to bookManager here, but it's not available in AccountManager
+        // This is a design issue - we need to handle this at a higher level
+    }
+
     // If current user has higher privilege, password can be omitted
     if (currentUser && currentUser->getPrivilege() > it->second->getPrivilege()) {
         it->second->setLoggedIn(true);
@@ -142,8 +148,27 @@ bool AccountManager::deleteUser(const std::string& userID) {
         return false;
     }
 
-    // Check if user is logged in
-    if (it->second->isLoggedIn()) {
+    // Check if user is logged in (anywhere in the stack)
+    std::stack<std::shared_ptr<Account>> tempStack;
+    bool isLoggedIn = false;
+
+    // Check current login stack
+    while (!loginStack.empty()) {
+        auto user = loginStack.top();
+        loginStack.pop();
+        if (user->getUserID() == userID) {
+            isLoggedIn = true;
+        }
+        tempStack.push(user);
+    }
+
+    // Restore login stack
+    while (!tempStack.empty()) {
+        loginStack.push(tempStack.top());
+        tempStack.pop();
+    }
+
+    if (isLoggedIn) {
         return false;
     }
 
@@ -179,32 +204,51 @@ void AccountManager::loadAccounts() {
 
     accounts.clear();
 
-    size_t count;
+    size_t count = 0;
     file.read(reinterpret_cast<char*>(&count), sizeof(count));
 
-    for (size_t i = 0; i < count; ++i) {
-        size_t idLen, passLen, nameLen;
-        int privilege;
-        bool loggedIn;
+    // Sanity check to prevent corrupted files from causing issues
+    if (count > 100000) {
+        file.close();
+        return;
+    }
+
+    for (size_t i = 0; i < count && file.good(); ++i) {
+        size_t idLen = 0, passLen = 0, nameLen = 0;
+        int privilege = 0;
+        bool loggedIn = false;
 
         file.read(reinterpret_cast<char*>(&idLen), sizeof(idLen));
+        if (idLen > 100) { // Sanity check
+            break;
+        }
         std::string userID(idLen, '\0');
         file.read(&userID[0], idLen);
 
         file.read(reinterpret_cast<char*>(&passLen), sizeof(passLen));
+        if (passLen > 100) { // Sanity check
+            break;
+        }
         std::string password(passLen, '\0');
         file.read(&password[0], passLen);
 
         file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
+        if (nameLen > 100) { // Sanity check
+            break;
+        }
         std::string username(nameLen, '\0');
         file.read(&username[0], nameLen);
 
         file.read(reinterpret_cast<char*>(&privilege), sizeof(privilege));
         file.read(reinterpret_cast<char*>(&loggedIn), sizeof(loggedIn));
 
-        auto account = std::make_shared<Account>(userID, password, username, privilege);
-        account->setLoggedIn(loggedIn);
-        accounts[userID] = account;
+        // Validate data before creating account
+        if (isValidUserID(userID) && isValidPassword(password) && isValidUsername(username) &&
+            (privilege == 1 || privilege == 3 || privilege == 7)) {
+            auto account = std::make_shared<Account>(userID, password, username, privilege);
+            account->setLoggedIn(loggedIn);
+            accounts[userID] = account;
+        }
     }
 
     file.close();
